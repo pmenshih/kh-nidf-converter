@@ -1,0 +1,22 @@
+{
+  "name": "kh-nidf-converter",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pmenshih/kh-nidf-converter.git"
+  },
+  "author": "Peter Menshih",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pmenshih/kh-nidf-converter/issues"
+  },
+  "homepage": "https://github.com/pmenshih/kh-nidf-converter#readme",
+  "dependencies": {
+    "pg": "^7.4.1"
+  }
+}
