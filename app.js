@@ -19,7 +19,7 @@ const
     },
     // редактирование вопроса
     question: {
-      text: '\nQ$q\n\n$a\nConvert to:\nn - nothing\n1 - 1..N by position\n5 - N..1 by position\n- - -100..100 by answers num\n0 - 0..100 by answers num\nq. Main menu\n> ',
+      text: '\nQ$q\n\n$a\nConvert to:\nn - nothing\na,b,.. - new vals\nq. Main menu\n> ',
       value: 2,
     },
     // список сценариев в системе
@@ -139,7 +139,8 @@ rl
 .on('line', (line) => {
   let inp = line.trim();
 
-  // обернуть все в промис нужно для того, чтобы приглашение к вводу появлялось ПОСЛЕ операций с БД
+  // обернуть все в промис нужно для того,
+  // чтобы приглашение к вводу появлялось ПОСЛЕ операций с БД
   new Promise((resolve) => {
     // главное меню
     if(menuPosition === menu.main.value) {
@@ -217,22 +218,64 @@ rl
 
         resolve(0);
       }
-      // один из вариантов действий
-      else if(['0', '1', '5', '-', 'n'].includes(inp)) {
-        // пропуск вопроса
-        if(inp === 'n') {
-          getQuestion(curScenario.id, curPosition)
-          .then(r => {
-            showQuestion(r.rows[0]);
+      // пропуск вопроса
+      else if(inp === 'n') {
+        getQuestion(curScenario.id, curPosition)
+        .then(r => {
+          showQuestion(r.rows[0]);
+          resolve(0);
+        });
+      }
+      // попытка разобрать новую шкалу значений
+      else {
+        let vals = inp.split(',');
 
+        // ввели что-то неверное
+        if(vals.length !== curQuestion.answers.length) {
+          rl.setPrompt('Incorrect input, try again\n> ');
+          resolve(0);
+        }
+        else {
+          // нужна, чтобы выровнять индекс новых значений
+          // в зависимости от того, начинается счет позиций вариантов ответов
+          // с нуля или с единицы
+          let delta = curQuestion.answers[0].position || 0;
+          // перебор вариантов ответов
+          curQuestion.answers.reduce((pr, el) => pr.then(() => {
+            let query = `
+              UPDATE scenarios_questions_answers
+              SET value=$1
+              WHERE id=$2;`;
+            // обновление значений для сценария
+            return pgPool.query(query, [vals[el.position-delta], el.id])
+            .then(() => {
+              /* eslint-disable no-console */
+              console.log(`scenario question answer N${el.position} updated`);
+              /* eslint-enable no-console */
+              query = `
+                UPDATE researches_data
+                SET answer=$1
+                WHERE question_id=$2
+                  AND answers_ids=$3`;
+              // обновление значений для заполненных анкет
+              return pgPool.query(query, [vals[el.position-delta], curQuestion.id, el.id]);
+            })
+            .then(() => {
+              /* eslint-disable no-console */
+              console.log('scenario data for answer updated');
+              /* eslint-enable no-console */
+            })
+            .catch(e => {
+              console.error(e);
+            });
+          }), Promise.resolve())
+          // цикл окончен, можно показывать следующий вопрос
+          .then(() => getQuestion(curScenario.id, curPosition))
+          .then((r) => {
+            showQuestion(r.rows[0]);
             resolve(0);
           });
         }
-      }
-      // ввели что-то неверное
-      else {
-        rl.setPrompt('Incorrect input, try again\n> ');
-        resolve(0);
       }
     }
   })
